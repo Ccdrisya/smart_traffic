@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% block title %}Analyze CCTV Image{% endblock %}
+
+{% block content %}
+<h2>Analyze a CCTV Image</h2>
+<a class="nav-link" href="{% url 'traffic:bulk_upload' %}">Bulk Upload</a>
+<form method="post" enctype="multipart/form-data" class="mt-3" style="max-width: 600px;">
+    {% csrf_token %}
+    {% for field in form %}
+    <div class="mb-3">
+        <label class="form-label">{{ field.label }}</label>
+        {{ field|add_class:"form-control" }}
+        {{ field.errors }}
+    </div>
+    {% endfor %}
+    <a href="{% url 'traffic:bulk_upload' %}">Bulk Upload</a>
+    <button type="submit" class="btn btn-primary">Upload & Analyze</button>
+</form>
+{% endblock %}

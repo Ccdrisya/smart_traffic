@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Smart Traffic Monitoring{% endblock %}
+
+{% block content %}
+<style>
+  :root{
+    --bg:#11151C; --panel:#1B212B; --line:#2A313D;
+    --ink:#ECEDEF; --muted:#8A93A3; --amber:#F2A33D;
+  }
+  .home-wrap{
+    background:var(--bg); color:var(--ink);
+    margin:-1.5rem -0.75rem 0; padding:0;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  .mono{ font-family:"JetBrains Mono",ui-monospace,monospace; }
+
+  /* ---- Hero ---- */
+  .hero{
+    display:flex; flex-wrap:wrap; gap:3rem;
+    align-items:center; justify-content:space-between;
+    max-width:1140px; margin:0 auto; padding:5rem 1.5rem 4rem;
+  }
+  .hero-copy{ flex:1 1 420px; max-width:540px; }
+  .hero-copy h1{
+    font-size:2.75rem; line-height:1.12; font-weight:650;
+    margin:0 0 1.25rem; letter-spacing:-0.01em;
+  }
+  .hero-copy p{ color:var(--muted); font-size:1.05rem; line-height:1.6; margin:0 0 2rem; max-width:46ch; }
+  .btn-amber{
+    display:inline-block; background:var(--amber); color:#11151C;
+    font-weight:600; padding:0.75rem 1.5rem; border-radius:3px;
+    text-decoration:none; border:none;
+  }
+  .btn-amber:hover{ background:#e0922e; color:#11151C; }
+  .btn-ghost{
+    display:inline-block; padding:0.75rem 1.25rem;
+    color:var(--ink); text-decoration:none; border:1px solid var(--line); border-radius:3px;
+  }
+  .hero-actions{ display:flex; flex-wrap:wrap; gap:0.75rem; }
+
+  /* ---- Mock detection frame ---- */
+  .frame{
+    flex:1 1 420px; max-width:480px; position:relative;
+    background:var(--panel); border:1px solid var(--line); border-radius:4px;
+    aspect-ratio:4/3; padding:1rem;
+  }
+  .frame-hud{ display:flex; justify-content:space-between; font-size:0.72rem; color:var(--muted); margin-bottom:0.5rem; }
+  .frame-hud .dot{ color:#4ADE80; }
+  .frame-road{ position:relative; height:calc(100% - 2.2rem); overflow:hidden; border-radius:2px; background:#171C25; }
+  .corner{ position:absolute; width:16px; height:16px; border-color:var(--amber); opacity:0.7; }
+  .corner.tl{ top:8px; left:8px; border-top:2px solid; border-left:2px solid; }
+  .corner.tr{ top:8px; right:8px; border-top:2px solid; border-right:2px solid; }
+  .corner.bl{ bottom:8px; left:8px; border-bottom:2px solid; border-left:2px solid; }
+  .corner.br{ bottom:8px; right:8px; border-bottom:2px solid; border-right:2px solid; }
+  .bbox{
+    position:absolute; border:1.5px solid var(--amber); border-radius:2px;
+  }
+  .bbox .tag{
+    position:absolute; top:-18px; left:-1px; background:var(--amber); color:#11151C;
+    font-size:0.62rem; padding:1px 4px; white-space:nowrap; border-radius:2px;
+  }
+  .vehicle{ position:absolute; background:#3A4252; border-radius:3px; }
+  .readout{
+    position:absolute; bottom:8px; left:8px; font-size:0.72rem; color:var(--ink);
+    background:rgba(17,21,28,0.75); padding:3px 6px; border-radius:2px;
+  }
+
+  /* ---- Stats strip ---- */
+  .stats{
+    max-width:1140px; margin:0 auto; padding:0 1.5rem 4rem;
+    display:flex; flex-wrap:wrap; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+  }
+  .stat{ flex:1 1 220px; padding:2rem 1.5rem; border-right:1px solid var(--line); }
+  .stat:last-child{ border-right:none; }
+  .stat .num{ font-size:1.9rem; font-weight:650; }
+  .stat .label{ color:var(--muted); font-size:0.85rem; margin-top:0.25rem; }
+
+  /* ---- Steps ---- */
+  .steps{ max-width:1140px; margin:0 auto; padding:0 1.5rem 5rem; }
+  .steps h2{ font-size:1.5rem; font-weight:650; margin-bottom:2.5rem; }
+  .step-row{ display:flex; flex-wrap:wrap; gap:2.5rem; }
+  .step{ flex:1 1 200px; }
+  .step .n{ font-size:0.8rem; color:var(--amber); margin-bottom:0.5rem; }
+  .step h3{ font-size:1.1rem; font-weight:600; margin:0 0 0.5rem; }
+  .step p{ color:var(--muted); font-size:0.92rem; line-height:1.55; margin:0; }
+
+  @media (max-width:640px){
+    .hero{ padding:3rem 1.25rem 2.5rem; }
+    .hero-copy h1{ font-size:2.1rem; }
+  }
+</style>
+
+<div class="home-wrap">
+
+  <div class="hero">
+    <div class="hero-copy">
+      <h1>Count traffic from a single CCTV photo.</h1>
+      <p>Upload a snapshot from any junction camera. A detection model tuned on real Indian CCTV footage counts every vehicle by type and eads the congestion level, then builds day, hour and month patterns from many snapshots &mdash; no live feed required.</p>
+      <a href="{% url 'traffic:bulk_upload' %}" class="btn-amber">Analyze a CCTV image</a>
+      <a href="{% url 'traffic:dashboard' %}" class="btn-ghost">View dashboard</a>
+    </div>
+
+    <div class="frame">
+      <div class="frame-hud">
+        <span class="mono"><span class="dot">&#9679;</span> CAM&ndash;014</span>
+        <span class="mono">BT_Rd_5th_Mn</span>
+      </div>
+      <div class="frame-road">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+
+        <div class="vehicle" style="left:18%; top:30%; width:15%; height:11%;"></div>
+        <div class="bbox" style="left:17%; top:28%; width:17%; height:15%;"><span class="tag mono">Two-wheeler .93</span></div>
+
+        <div class="vehicle" style="left:46%; top:52%; width:22%; height:16%;"></div>
+        <div class="bbox" style="left:45%; top:50%; width:24%; height:20%;"><span class="tag mono">Three-wheeler .96</span></div>
+
+        <div class="vehicle" style="left:72%; top:22%; width:14%; height:10%;"></div>
+        <div class="bbox" style="left:71%; top:20%; width:16%; height:14%;"><span class="tag mono">Two-wheeler .91</span></div>
+
+        <div class="readout mono">VEHICLES: 29 &middot; CONGESTION: HEAVY</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="num">14</div>
+      <div class="label">Vehicle classes detected, from hatchbacks to three-wheelers</div>
+    </div>
+    <div class="stat">
+      <div class="num">45K+</div>
+      <div class="label">Real Bengaluru CCTV images in the BMD&ndash;45 dataset (1,800 used to fine-tune this model)</div>
+    </div>
+    <div class="stat">
+      <div class="num">3</div>
+      <div class="label">Congestion levels: Light, Moderate and Heavy, plus day, hour and month patterns</div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <h2>How it works</h2>
+    <div class="step-row">
+      <div class="step">
+        <div class="n mono">01</div>
+        <h3>Upload snapshots</h3>
+        <p>One image, many files or a whole folder, from a junction or mid-block CCTV camera. No live stream needed.</p>
+      </div>
+      <div class="step">
+        <div class="n mono">02</div>
+        <h3>Model detects every vehicle</h3>
+        <p>A YOLOv8 model fine-tuned on Indian traffic finds and classifies each vehicle in the frame.</p>
+      </div>
+      <div class="step">
+        <div class="n mono">03</div>
+        <h3>Get counts and congestion</h3>
+        <p>See per-class vehicle counts and a light / moderate / heavy reading for each snapshot.</p>
+      </div>
+      <div class="step">
+        <div class="n mono">04</div>
+        <h3>See patterns over time</h3>
+        <p>Day, weekday, hour and month charts, with busiest and quietest periods and expected congestion.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

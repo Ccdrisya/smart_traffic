@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Smart Traffic Monitoring{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-end mb-3">
+  <div>
+    <h1 class="mb-1">Dashboard</h1>
+    <p class="mb-0" style="color: var(--muted);">A quick glimpse of recent congestion.</p>
+  </div>
+  <a href="{% url 'traffic:analytics' %}" class="btn btn-primary">Full analytics</a>
+</div>
+
+{% if total == 0 %}
+  <div class="alert alert-warning">No analyzed images yet. Use Analyze Image or Bulk Upload first.</div>
+{% else %}
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="p-3 rounded" style="background: var(--panel); border: 1px solid var(--line);">
+    <div class="mono fs-3">{{ total }}</div><div style="color: var(--muted);">Snapshots analyzed</div></div></div>
+  <div class="col-6 col-md-3"><div class="p-3 rounded" style="background: var(--panel); border: 1px solid var(--line);">
+    <div class="mono fs-3 text-success">{{ levels.LIGHT }}</div><div style="color: var(--muted);">Light</div></div></div>
+  <div class="col-6 col-md-3"><div class="p-3 rounded" style="background: var(--panel); border: 1px solid var(--line);">
+    <div class="mono fs-3 text-warning">{{ levels.MODERATE }}</div><div style="color: var(--muted);">Moderate</div></div></div>
+  <div class="col-6 col-md-3"><div class="p-3 rounded" style="background: var(--panel); border: 1px solid var(--line);">
+    <div class="mono fs-3 text-danger">{{ levels.HEAVY }}</div><div style="color: var(--muted);">Heavy</div></div></div>
+</div>
+
+<div class="p-3 rounded mb-4" style="background: var(--panel); border: 1px solid var(--line);">
+  <div class="d-flex justify-content-between align-items-start">
+    <h5 class="mb-1">Recent days</h5>
+    {% if latest %}
+      <span class="small" style="color: var(--muted);">
+        Latest day ({{ latest.label }}):
+        {% if latest.level == "HEAVY" %}<span class="badge bg-danger">Heavy</span>
+        {% elif latest.level == "MODERATE" %}<span class="badge bg-warning text-dark">Moderate</span>
+        {% else %}<span class="badge bg-success">Light</span>{% endif %}
+        avg {{ latest.avg }} vehicles
+      </span>
+    {% endif %}
+  </div>
+  <p class="small" style="color: var(--muted);">Average vehicles per snapshot, last 14 days with data. Bar colour shows the congestion level.</p>
+  <canvas id="recent-chart" height="90"></canvas>
+</div>
+
+<div class="p-3 rounded" style="background: var(--panel); border: 1px solid var(--line);">
+  <h5>By location</h5>
+  <table class="table table-dark align-middle mb-0">
+    <thead><tr><th>Location</th><th>Snapshots</th><th>Avg vehicles</th><th>Typical level</th></tr></thead>
+    <tbody>
+      {% for loc in location_rows %}
+      <tr>
+        <td>{{ loc.name }}</td>
+        <td class="mono">{{ loc.n }}</td>
+        <td class="mono">{{ loc.avg }}</td>
+        <td>
+          {% if loc.level == "HEAVY" %}<span class="badge bg-danger">Heavy</span>
+          {% elif loc.level == "MODERATE" %}<span class="badge bg-warning text-dark">Moderate</span>
+          {% else %}<span class="badge bg-success">Light</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{{ chart_data|json_script:"recent-data" }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+  const d = JSON.parse(document.getElementById("recent-data").textContent);
+  Chart.defaults.color = "#8A93A3";
+  Chart.defaults.borderColor = "#2A313D";
+  new Chart(document.getElementById("recent-chart"), {
+    type: "bar",
+    data: {
+      labels: d.labels,
+      datasets: [{label: "Avg vehicles per snapshot", data: d.avg, backgroundColor: d.colors}]
+    },
+    options: {plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}}}
+  });
+</script>
+{% endif %}
+{% endblock %}

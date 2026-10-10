@@ -1,0 +1,81 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Smart Traffic Monitoring{% endblock %}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'traffic/css/style.css' %}">
+    <style>
+        :root{
+            --bg:#11151C; --panel:#1B212B; --line:#2A313D;
+            --ink:#ECEDEF; --muted:#8A93A3; --amber:#F2A33D;
+        }
+        body{
+            background:var(--bg); color:var(--ink);
+            font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+        }
+        .mono{ font-family:"JetBrains Mono",ui-monospace,monospace; }
+
+        /* Nav: hairline console bar instead of a generic Bootstrap navbar */
+        .topbar{
+            border-bottom:1px solid var(--line);
+            background:var(--bg);
+        }
+        .topbar .wrap{
+            max-width:1140px; margin:0 auto; padding:0 1.5rem;
+            display:flex; align-items:center; justify-content:space-between;
+            height:64px;
+        }
+        .brand{
+            color:var(--ink); text-decoration:none; font-weight:650; font-size:1.05rem;
+            display:flex; align-items:center; gap:0.5rem;
+        }
+        .brand .dot{ color:var(--amber); font-size:0.8rem; }
+        .topnav{ display:flex; align-items:center; gap:1.75rem; }
+        .topnav a{
+            color:var(--muted); text-decoration:none; font-size:0.9rem;
+        }
+        .topnav a:hover{ color:var(--amber); }
+        .topnav form button{
+            background:none; border:none; color:var(--muted); font-size:0.9rem; padding:0;
+        }
+        .topnav form button:hover{ color:var(--amber); }
+
+        /* Links & primary actions pick up the amber accent */
+        a{ color:var(--amber); }
+        .btn-primary{
+            background:var(--amber); border-color:var(--amber); color:#11151C; font-weight:600;
+        }
+        .btn-primary:hover{ background:#e0922e; border-color:#e0922e; color:#11151C; }
+
+        .page-container{ max-width:1140px; margin:0 auto; padding:2rem 1.5rem; }
+    </style>
+</head>
+<body>
+    <nav class="topbar">
+        <div class="wrap">
+            <a class="brand" href="{% url 'traffic:home' %}"><span class="dot">&#9679;</span> Smart Traffic Monitoring</a>
+            <div class="topnav">
+                <a href="{% url 'traffic:dashboard' %}">Dashboard</a>
+                <a href="{% url 'traffic:bulk_upload' %}">Analyze Image</a>
+                <a href="{% url 'traffic:analytics' %}">Analytics</a>
+                <a href="/admin/">Admin</a>
+            </div>
+        </div>
+    </nav>
+
+    {% if not request.resolver_match or request.resolver_match.url_name != 'home' %}
+    <div class="page-container">
+    {% endif %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+
+        {% block content %}{% endblock %}
+    {% if not request.resolver_match or request.resolver_match.url_name != 'home' %}
+    </div>
+    {% endif %}
+</body>
+</html>

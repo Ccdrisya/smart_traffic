@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Bulk Upload - Smart Traffic Monitoring{% endblock %}
+
+{% block content %}
+<h1 class="mb-3">CCTV IMAGE UPLOAD</h1>
+<p style="max-width: 640px; color: var(--muted);">
+  Upload many snapshots at once. Images are sorted by filename and stamped
+  one interval apart, starting from the time you choose. This builds a
+  simulated schedule for the time-based analytics.
+</p>
+
+<form method="post" enctype="multipart/form-data" style="max-width: 620px;">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="mb-3">
+    <label class="form-label">CCTV images</label>
+    <div class="form-text mb-2">Choose several files</div>
+    <input type="file" name="images" id="id_images" class="form-control mb-2" accept="image/*" multiple>
+    <div class="form-text mb-2">pick a whole folder</div>
+    <input type="file" name="images" id="id_folder" class="form-control" webkitdirectory>
+    {% for error in form.images.errors %}
+      <div class="text-danger small">{{ error }}</div>
+    {% endfor %}
+  </div>
+
+  {% for field in form %}
+    {% if field.name != "images" %}
+    <div class="mb-3">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" %}
+      {% if field.help_text %}
+        <div class="form-text">{{ field.help_text }}</div>
+      {% endif %}
+      {% for error in field.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endfor %}
+
+  <button type="submit" class="btn btn-primary">Upload &amp; Analyze All</button>
+
+</form>
+{% endblock %}

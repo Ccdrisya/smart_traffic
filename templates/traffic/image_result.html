@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Analysis Result{% endblock %}
+
+{% block content %}
+<h2>Analysis Result — Image #{{ cctv_image.pk }}</h2>
+
+<div class="row mt-3">
+    <div class="col-md-6">
+        <h5>Original</h5>
+        <img src="{{ cctv_image.image.url }}" class="img-fluid rounded border">
+    </div>
+    <div class="col-md-6">
+        <h5>Annotated (detections)</h5>
+        {% if cctv_image.annotated_image %}
+            <img src="{{ cctv_image.annotated_image.url }}" class="img-fluid rounded border">
+        {% else %}
+            <p class="text-muted">Not processed yet — no active model uploaded, or inference not run.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="mt-4">
+    <p><strong>Total vehicles:</strong> {{ cctv_image.total_vehicle_count }}</p>
+    <p><strong>Congestion level:</strong>
+        {% if cctv_image.congestion_level == "LIGHT" %}<span class="badge bg-success">Light</span>
+        {% elif cctv_image.congestion_level == "MODERATE" %}<span class="badge bg-warning text-dark">Moderate</span>
+        {% elif cctv_image.congestion_level == "HEAVY" %}<span class="badge bg-danger">Heavy</span>
+        {% else %}<span class="badge bg-secondary">Pending</span>
+        {% endif %}
+    </p>
+
+    <h5>Per-class counts</h5>
+    <table class="table table-sm w-auto">
+        <thead><tr><th>Class</th><th>Count</th><th>Avg. confidence</th></tr></thead>
+        <tbody>
+            {% for c in cctv_image.class_counts.all %}
+            <tr><td>{{ c.class_name }}</td><td>{{ c.count }}</td><td>{{ c.avg_confidence|floatformat:2 }}</td></tr>
+            {% empty %}
+            <tr><td colspan="3">No detections yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

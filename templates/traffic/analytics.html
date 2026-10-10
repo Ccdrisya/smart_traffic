@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - Smart Traffic Monitoring{% endblock %}
+
+{% block content %}
+<h1 class="mb-1">Traffic Analytics</h1>
+<p style="color: var(--muted);">
+  Patterns from the uploaded snapshots. Charts show the <em>average vehicles per snapshot</em>,
+  so a period with more images is not unfairly counted as busier.
+</p>
+
+<form method="get" class="mb-4 d-flex gap-2 align-items-end" style="max-width: 420px;">
+  <div class="flex-grow-1">
+    <label class="form-label">Location</label>
+    <select name="location" class="form-select">
+      <option value="">All locations</option>
+      {% for loc in locations %}
+        <option value="{{ loc.pk }}" {% if loc.pk|stringformat:"s" == location_id %}selected{% endif %}>{{ loc.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primary">Apply</button>
+</form>
+
+{% if total_images == 0 %}
+  <div class="alert alert-warning">No analyzed images yet. Use Bulk Upload first.</div>
+{% else %}
+
+<!-- Glimpse -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="p-3 rounded" style="background: var(--panel); border: 1px solid var(--line);">
+    <div class="mono fs-3">{{ total_images }}</div><div style="color: var(--muted);">Snapshots</div></div></div>
+  <div class="col-6 col-md-3"><div class="p-3 rounded" style="background: var(--panel); border: 1px solid var(--line);">
+    <div class="mono fs-3 text-success">{{ levels.LIGHT }}</div><div style="color: var(--muted);">Light</div></div></div>
+  <div class="col-6 col-md-3"><div class="p-3 rounded" style="background: var(--panel); border: 1px solid var(--line);">
+    <div class="mono fs-3 text-warning">{{ levels.MODERATE }}</div><div style="color: var(--muted);">Moderate</div></div></div>
+  <div class="col-6 col-md-3"><div class="p-3 rounded" style="background: var(--panel); border: 1px solid var(--line);">
+    <div class="mono fs-3 text-danger">{{ levels.HEAVY }}</div><div style="color: var(--muted);">Heavy</div></div></div>
+</div>
+
+<!-- Charts + numbers -->
+<div class="row g-4 mb-4">
+  {% for s in sections %}
+  <div class="col-lg-6">
+    <div class="p-3 rounded h-100" style="background: var(--panel); border: 1px solid var(--line);">
+      <h5>{{ s.title }}</h5>
+      {% if s.busiest %}
+      <p class="small mb-2" style="color: var(--muted);">
+        Busiest: <strong class="text-danger">{{ s.busiest.label }}</strong> ({{ s.busiest.avg }}) &middot;
+        Quietest: <strong class="text-success">{{ s.quietest.label }}</strong> ({{ s.quietest.avg }})
+      </p>
+      {% endif %}
+      <canvas id="chart-{{ s.key }}" height="170"></canvas>
+      <details class="mt-2">
+        <summary class="small" style="color: var(--muted);">Show numbers</summary>
+        <table class="table table-dark table-sm mt-2 mb-0">
+          <thead><tr><th>{{ s.title }}</th><th>Snapshots</th><th>Total vehicles</th><th>Avg</th></tr></thead>
+          <tbody>
+            {% for r in s.rows %}
+            <tr><td>{{ r.label }}</td><td class="mono">{{ r.images }}</td><td class="mono">{{ r.total }}</td><td class="mono">{{ r.avg }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </details>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Expected congestion -->
+<div class="p-3 rounded mb-4" style="background: var(--panel); border: 1px solid var(--line);">
+  <h5>Expected congestion</h5>
+  <p class="small" style="color: var(--muted);">
+    Average past vehicle count for the same weekday and hour, turned into Light / Moderate / Heavy.
+    This is a pattern from your uploaded data, not a forecast model. A dash means no data for that slot.
+  </p>
+
+  <form method="get" class="row g-2 align-items-end mb-3">
+    <input type="hidden" name="location" value="{{ location_id }}">
+    <div class="col-auto">
+      <label class="form-label">Day</label>
+      <select name="weekday" class="form-select">
+        {% for i, name in weekday_options %}
+          <option value="{{ i }}" {% if i == wd_i %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Hour</label>
+      <select name="hour" class="form-select">
+        {% for h in hour_options %}
+          <option value="{{ h }}" {% if h == hr_i %}selected{% endif %}>{{ h|stringformat:"02d" }}:00</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto"><button class="btn btn-primary">Check</button></div>
+  </form>
+
+  {% if check %}
+    <div class="alert alert-dark">
+      {% if check.n %}
+        {{ check.when }}: likely <span class="badge {{ check.css }}">{{ check.level }}</span>
+        (average {{ check.avg }} vehicles, based on {{ check.n }} snapshot{{ check.n|pluralize }}).
+      {% else %}
+        {{ check.when }}: not enough data, no snapshots for this slot.
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="table-responsive">
+    <table class="table table-dark table-sm text-center align-middle mb-0">
+      <thead>
+        <tr><th></th>{% for h in hours %}<th class="mono">{{ h|stringformat:"02d" }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for row in grid %}
+        <tr>
+          <th class="text-start">{{ row.day }}</th>
+          {% for cell in row.cells %}
+            <td>{% if cell %}<span class="badge {{ cell.css }}" title="{{ cell.n }} snapshot(s)">{{ cell.avg }}</span>{% else %}<span style="color: var(--muted);">-</span>{% endif %}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{{ chart_data|json_script:"charts-data" }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+  const data = JSON.parse(document.getElementById("charts-data").textContent);
+  Chart.defaults.color = "#8A93A3";
+  Chart.defaults.borderColor = "#2A313D";
+  const kinds = {day: "line", weekday: "bar", hour: "bar", month: "bar"};
+  Object.keys(data).forEach(function (key) {
+    new Chart(document.getElementById("chart-" + key), {
+      type: kinds[key],
+      data: {
+        labels: data[key].labels,
+        datasets: [{
+          label: "Avg vehicles per snapshot",
+          data: data[key].avg,
+          backgroundColor: "#F2A33D",
+          borderColor: "#F2A33D",
+          tension: 0.3
+        }]
+      },
+      options: {plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}}}
+    });
+  });
+</script>
+{% endif %}
+{% endblock %}
