@@ -2,43 +2,93 @@
 {% block title %}Analysis Result{% endblock %}
 
 {% block content %}
-<h2>Analysis Result — Image #{{ cctv_image.pk }}</h2>
-
-<div class="row mt-3">
-    <div class="col-md-6">
-        <h5>Original</h5>
-        <img src="{{ cctv_image.image.url }}" class="img-fluid rounded border">
-    </div>
-    <div class="col-md-6">
-        <h5>Annotated (detections)</h5>
-        {% if cctv_image.annotated_image %}
-            <img src="{{ cctv_image.annotated_image.url }}" class="img-fluid rounded border">
-        {% else %}
-            <p class="text-muted">Not processed yet — no active model uploaded, or inference not run.</p>
-        {% endif %}
-    </div>
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Analysis Result <span class="text-secondary">#{{ cctv_image.pk }}</span></h1>
+  <div>
+    <a href="{% url 'traffic:image_upload' %}" class="btn btn-warning btn-sm fw-semibold">Analyze another</a>
+    <a href="{% url 'traffic:dashboard' %}" class="btn btn-outline-secondary btn-sm">Dashboard</a>
+  </div>
 </div>
 
-<div class="mt-4">
-    <p><strong>Total vehicles:</strong> {{ cctv_image.total_vehicle_count }}</p>
-    <p><strong>Congestion level:</strong>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card h-100"><div class="card-body">
+      <div class="text-secondary small">Congestion</div>
+      <div class="fs-4">
         {% if cctv_image.congestion_level == "LIGHT" %}<span class="badge bg-success">Light</span>
         {% elif cctv_image.congestion_level == "MODERATE" %}<span class="badge bg-warning text-dark">Moderate</span>
         {% elif cctv_image.congestion_level == "HEAVY" %}<span class="badge bg-danger">Heavy</span>
-        {% else %}<span class="badge bg-secondary">Pending</span>
-        {% endif %}
-    </p>
-
-    <h5>Per-class counts</h5>
-    <table class="table table-sm w-auto">
-        <thead><tr><th>Class</th><th>Count</th><th>Avg. confidence</th></tr></thead>
-        <tbody>
-            {% for c in cctv_image.class_counts.all %}
-            <tr><td>{{ c.class_name }}</td><td>{{ c.count }}</td><td>{{ c.avg_confidence|floatformat:2 }}</td></tr>
-            {% empty %}
-            <tr><td colspan="3">No detections yet.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        {% else %}<span class="badge bg-secondary">Pending</span>{% endif %}
+      </div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card h-100"><div class="card-body">
+      <div class="text-secondary small">Total vehicles</div>
+      <div class="fs-4">{{ cctv_image.total_vehicle_count }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card h-100"><div class="card-body">
+      <div class="text-secondary small">Weighted load (PCU)</div>
+      <div class="fs-4">{{ cctv_image.weighted_load|floatformat:1 }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card h-100"><div class="card-body">
+      <div class="text-secondary small">Location</div>
+      <div>{{ cctv_image.location|default:"Not set" }}</div>
+      <div class="text-secondary small mt-1">Captured {{ cctv_image.captured_at|date:"d M Y, H:i" }}</div>
+    </div></div>
+  </div>
 </div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <h2 class="h6 text-secondary">Original</h2>
+    <img src="{{ cctv_image.image.url }}" class="img-fluid rounded border" alt="Uploaded CCTV image">
+  </div>
+  <div class="col-md-6">
+    <h2 class="h6 text-secondary">Detections</h2>
+    {% if cctv_image.annotated_image %}
+      <img src="{{ cctv_image.annotated_image.url }}" class="img-fluid rounded border" alt="Image with detected vehicles">
+    {% else %}
+      <p class="text-secondary">Not analyzed yet. Upload and activate a model in the admin panel first.</p>
+    {% endif %}
+  </div>
+</div>
+
+<h2 class="h5">Vehicle mix</h2>
+<p>
+  {% for name, n in cctv_image.category_mix.items %}
+    <span class="badge text-bg-secondary fs-6 me-1">{{ name }} {{ n }}</span>
+  {% empty %}
+    <span class="text-secondary">No vehicles detected.</span>
+  {% endfor %}
+</p>
+
+<h2 class="h5 mt-4">Per-class counts</h2>
+<table class="table table-sm align-middle" style="max-width: 640px;">
+  <thead>
+    <tr><th>Class</th><th class="text-end">Count</th><th class="text-end">PCU each</th><th class="text-end">Load (PCU)</th><th class="text-end">Avg. confidence</th></tr>
+  </thead>
+  <tbody>
+    {% for c in cctv_image.class_counts.all|dictsortreversed:"count" %}
+      <tr>
+        <td>{{ c.class_name }}</td>
+        <td class="text-end">{{ c.count }}</td>
+        <td class="text-end">{{ c.pcu_weight|floatformat:1 }}</td>
+        <td class="text-end">{{ c.pcu_load|floatformat:1 }}</td>
+        <td class="text-end">{{ c.avg_confidence|floatformat:2 }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="text-secondary">No detections.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="text-secondary small" style="max-width: 640px;">
+  Weighted load is the sum of each vehicle times its passenger car unit (PCU) weight, so a bus counts for more
+  than a two-wheeler. Light is under 8 PCU, Moderate is 8 to under 20, and Heavy is 20 or more.
+</p>
 {% endblock %}

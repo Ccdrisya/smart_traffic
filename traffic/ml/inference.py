@@ -1,8 +1,9 @@
 """
 Run a trained YOLOv8 model on one CCTV image to get:
   1. Vehicle detection + classification (bounding boxes per class)
-  2. Per-class vehicle counts
-  3. A congestion level (LIGHT / MODERATE / HEAVY) from the total vehicle count
+  2. Per-class vehicle counts and the total count
+  3. A weighted load in passenger car units (PCU)
+  4. A congestion level (LIGHT / MODERATE / HEAVY) from the weighted load
 """
 
 from functools import lru_cache
@@ -11,6 +12,9 @@ from pathlib import Path
 from django.core.files.base import ContentFile
 from django.utils import timezone
 
+from .vehicle_weights import weighted_load
+
+# Cut-offs in PCU. A simple fixed rule, not calibrated against road capacity.
 CONGESTION_THRESHOLDS = {
     "LIGHT": (0, 8),
     "MODERATE": (8, 20),
@@ -18,9 +22,10 @@ CONGESTION_THRESHOLDS = {
 }
 
 
-def classify_congestion(vehicle_count: int) -> str:
+def classify_congestion(load: float) -> str:
+    """Map a weighted load (PCU) to LIGHT, MODERATE or HEAVY."""
     for level, (low, high) in CONGESTION_THRESHOLDS.items():
-        if low <= vehicle_count < high:
+        if low <= load < high:
             return level
     return "HEAVY"
 
@@ -51,6 +56,7 @@ def run_inference(cctv_image, weights_path: str):
         confidences.setdefault(cls_name, []).append(conf)
 
     total = sum(class_counts.values())
+    load = weighted_load(class_counts)
 
     annotated_array = results.plot(line_width=2, font_size=10, labels=True, conf=True)
     ok, buffer = cv2.imencode(".jpg", annotated_array)
@@ -59,7 +65,8 @@ def run_inference(cctv_image, weights_path: str):
         cctv_image.annotated_image.save(filename, ContentFile(buffer.tobytes()), save=False)
 
     cctv_image.total_vehicle_count = total
-    cctv_image.congestion_level = classify_congestion(total)
+    cctv_image.weighted_load = load
+    cctv_image.congestion_level = classify_congestion(load)
     cctv_image.processed_at = timezone.now()
     cctv_image.save()
 

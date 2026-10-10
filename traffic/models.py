@@ -62,6 +62,7 @@ class CCTVImage(models.Model):
 
     annotated_image = models.ImageField(upload_to="detections/", blank=True, null=True)
     total_vehicle_count = models.PositiveIntegerField(default=0)
+    weighted_load = models.FloatField(default=0)
     congestion_level = models.CharField(
         max_length=10,
         choices=[("LIGHT", "Light"), ("MODERATE", "Moderate"), ("HEAVY", "Heavy")],
@@ -71,6 +72,13 @@ class CCTVImage(models.Model):
 
     class Meta:
         ordering = ["-uploaded_at"]
+
+    @property
+    def category_mix(self):
+        """Vehicle counts grouped into the 9 display categories of the proposal."""
+        from .ml.vehicle_weights import category_counts
+
+        return category_counts({c.class_name: c.count for c in self.class_counts.all()})
 
     def __str__(self):
         return f"Image #{self.pk} - {self.congestion_level or 'unprocessed'}"
@@ -86,6 +94,16 @@ class VehicleClassCount(models.Model):
 
     class Meta:
         unique_together = ("cctv_image", "class_name")
+
+    @property
+    def pcu_weight(self):
+        from .ml.vehicle_weights import DEFAULT_PCU, PCU_WEIGHTS
+
+        return PCU_WEIGHTS.get(self.class_name, DEFAULT_PCU)
+
+    @property
+    def pcu_load(self):
+        return round(self.count * self.pcu_weight, 1)
 
     def __str__(self):
         return f"{self.class_name}: {self.count}"
